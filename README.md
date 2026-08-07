@@ -44,16 +44,25 @@ sequenceDiagram
 
     User->>App: Submits Prompt ("tell me his SSN")
     App->>F5: POST /openai/{provider}/chat/completions
-    Note over F5: Real-Time Policy Inspection<br/>(PII, Jailbreak, EU AI Act)
     
-    alt Policy Violation Detected
-        F5-->>App: HTTP 400/403 Policy Block + Scanner Details
+    Note over F5: 1. Inbound Prompt Inspection<br/>(Prompt Injection, PII, EU AI Act, Restricted Topics)
+    
+    alt Inbound Prompt Violation
+        F5-->>App: HTTP 400/403 Inbound Policy Block + Incident Details
         App-->>User: Displays Red Security Block Card + Telemetry Metrics
     else Prompt Allowed
         F5->>LLM: Forward Clean Prompt to Upstream Model
         LLM-->>F5: Stream Response Tokens
-        F5-->>App: SSE Stream + Telemetry Data
-        App-->>User: Displays Blue Response Card + Tokens Saved
+        
+        Note over F5: 2. Outbound LLM Response Inspection<br/>(Secret Leakage, Hallucinated PII, Toxicity)
+        
+        alt Outbound Response Violation
+            F5-->>App: Intercept & Replace Stream with Outbound Block Notice
+            App-->>User: Displays Red Security Block Card (LLM Data Leak Prevented)
+        else Response Allowed
+            F5-->>App: SSE Stream + Security Telemetry Data
+            App-->>User: Displays Blue Response Card + Tokens Saved
+        end
     end
 ```
 
