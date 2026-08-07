@@ -17,29 +17,39 @@ API_KEY = os.environ.get("F5_AI_GUARDRAILS_API_KEY", "")
 PROJECT_ID = os.environ.get("F5_AI_GUARDRAILS_PROJECT_ID", "your-f5-project-id")
 BASE_URL = os.environ.get("F5_AI_GUARDRAILS_BASE_URL", "https://www.us1.calypsoai.app").rstrip("/")
 active_provider_name = "azure-open-ai"
-scanner_catalog = {}
+scanner_catalogs = {}
 
-async def sync_f5_scanner_catalog():
+async def get_project_scanner_catalog(proj_id: str) -> dict:
     """
-    Queries F5 Guardrails API to populate scanner ID -> friendly name catalog mapping.
+    Queries F5 Guardrails API to fetch and cache the scanner ID -> name catalog for a given project ID.
     """
-    global scanner_catalog
+    global scanner_catalogs
+    if not proj_id:
+        proj_id = PROJECT_ID
+
+    if proj_id in scanner_catalogs and scanner_catalogs[proj_id]:
+        return scanner_catalogs[proj_id]
+
+    catalog = {}
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
-            url = f"{BASE_URL}/backend/v1/projects/{PROJECT_ID}/scanners"
+            url = f"{BASE_URL}/backend/v1/projects/{proj_id}/scanners"
             resp = await client.get(url, headers={
                 "Authorization": f"Bearer {API_KEY}",
-                "x-calypso-project-id": PROJECT_ID
+                "x-calypso-project-id": proj_id
             })
             if resp.status_code == 200:
                 data = resp.json()
                 scanners = data.get("projectScanners", {}).get("scanners", {})
                 for sid, sinfo in scanners.items():
                     if isinstance(sinfo, dict) and sinfo.get("name"):
-                        scanner_catalog[sid] = sinfo.get("name")
-                print(f"[F5 GUARDRAILS SYNC] Loaded {len(scanner_catalog)} user-defined guardrail names into scanner catalog.")
+                        catalog[sid] = sinfo.get("name")
+                scanner_catalogs[proj_id] = catalog
+                print(f"[F5 GUARDRAILS SYNC] Loaded {len(catalog)} guardrail names for project '{proj_id}'.")
     except Exception as e:
-        print(f"[F5 GUARDRAILS SYNC WARNING] Failed to sync scanner catalog: {e}")
+        print(f"[F5 GUARDRAILS SYNC WARNING] Failed to sync scanner catalog for project '{proj_id}': {e}")
+
+    return scanner_catalogs.get(proj_id, {})
 
 async def sync_f5_provider_config() -> tuple:
     """
@@ -48,8 +58,8 @@ async def sync_f5_provider_config() -> tuple:
     """
     global active_provider_name, active_calypso_endpoint
     
-    # Sync scanner catalog first
-    await sync_f5_scanner_catalog()
+    # Sync scanner catalog for default project
+    await get_project_scanner_catalog(PROJECT_ID)
 
     # Check if explicit custom endpoint override is provided in env
     env_endpoint = os.environ.get("F5_AI_GUARDRAILS_ENDPOINT", "")
@@ -93,7 +103,7 @@ async def api_sync_provider():
         "status": "success",
         "active_provider": provider_name,
         "endpoint_url": endpoint,
-        "scanners_loaded": len(scanner_catalog)
+        "scanners_loaded": sum(len(c) for c in scanner_catalogs.values())
     }
 PORT = int(os.environ.get("PORT", "8000"))
 
@@ -111,16 +121,22 @@ def count_tokens(text: str) -> int:
             pass
     return max(1, len(text) // 4)
 
-def parse_f5_scanner(user_prompt: str, err_j: dict) -> tuple:
+async def parse_f5_scanner(user_prompt: str, err_j: dict, target_proj_id: str = None) -> tuple:
     """
     Parses exact F5 AI Guardrails error details directly from the API response payload.
     Unwraps nested error objects (cai_error) and distinguishes security policy blocks from API system errors.
     Returns (scanner_name, block_message, risk_score)
     """
+    if not target_proj_id:
+        target_proj_id = PROJECT_ID
+
     err_detail = ""
     exact_scanner = ""
     is_policy_block = False
     
+    # Ensure project scanner catalog is fetched for this project ID
+    project_catalog = await get_project_scanner_catalog(target_proj_id)
+
     # 1. Unwrap nested "error" dict if present in API payload
     err_obj = err_j
     if isinstance(err_j, dict) and isinstance(err_j.get("error"), dict):
@@ -154,15 +170,11 @@ def parse_f5_scanner(user_prompt: str, err_j: dict) -> tuple:
                 sid = s.get("scanner_id", "")
                 s_name = s.get("scanner_name") or s.get("name") or s.get("rule") or s.get("category")
                 
-                # Check dynamic scanner catalog cache for user-defined guardrail name
-                if not s_name and sid and sid in scanner_catalog:
-                    s_name = scanner_catalog[sid]
+                # Look up exact user-defined guardrail name from project catalog
+                if not s_name and sid and sid in project_catalog:
+                    s_name = project_catalog[sid]
 
-                if not s_name and s.get("data", {}).get("type"):
-                    dtype = s.get("data", {}).get("type")
-                    if dtype != "custom":
-                        s_name = dtype.title() + " Scanner"
-
+                # Fallback to short scanner ID prefix if name not in catalog
                 if not s_name and sid:
                     s_name = f"Custom Guardrail ({sid[:8]})"
 
@@ -170,6 +182,7 @@ def parse_f5_scanner(user_prompt: str, err_j: dict) -> tuple:
                     failed_names.append(s_name)
             if failed_names:
                 exact_scanner = ", ".join(failed_names)
+
 
     # Detect if message indicates policy block vs system/API error
     if "blocked" in err_detail.lower() or "guardrail" in err_detail.lower():
@@ -254,10 +267,13 @@ async def chat_completions(request: Request):
     # Ensure correct model name for Calypso backend
     body["model"] = "gpt-4o-mini"
 
+    # Extract project ID from request headers if passed by client, otherwise use default
+    req_proj_id = request.headers.get("x-calypso-project-id", PROJECT_ID)
+
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {API_KEY}",
-        "x-calypso-project-id": PROJECT_ID
+        "x-calypso-project-id": req_proj_id
     }
 
     input_tokens = count_tokens(user_prompt)
@@ -283,7 +299,8 @@ async def chat_completions(request: Request):
                         except Exception:
                             pass
 
-                        triggered_scanner, block_msg, risk_score = parse_f5_scanner(user_prompt, err_j)
+                        triggered_scanner, block_msg, risk_score = await parse_f5_scanner(user_prompt, err_j, req_proj_id)
+
 
                         # Rich security telemetry payload embedded in SSE chunk for UI Guardrails Analysis panel
                         telemetry = {
@@ -374,7 +391,8 @@ async def chat_completions(request: Request):
                 except Exception:
                     pass
 
-                triggered_scanner, block_msg, risk_score = parse_f5_scanner(user_prompt, err_j)
+                triggered_scanner, block_msg, risk_score = await parse_f5_scanner(user_prompt, err_j, req_proj_id)
+
 
                 telemetry = {
                     "inspected_text": user_prompt,
