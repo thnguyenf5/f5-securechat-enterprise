@@ -15,9 +15,85 @@
 
 ---
 
+## 🏛️ Architecture & F5 AI Guardrails API Integration
+
+### How F5 SecureChat Enterprise Integrates with F5 Guardrails
+
+Instead of forcing developers to manage separate SDK integrations or direct provider API keys, **F5 SecureChat Enterprise** uses F5 AI Security Guardrails as an **Inline OpenAI-Compatible Gateway / Proxy**:
+
+1. **Unified Endpoint Protocol**: The application sends standard OpenAI Chat Completions requests to F5 Guardrails at:
+   `https://<f5-portal-url>/openai/<active-provider-name>/chat/completions`
+2. **Inline Real-Time Inspection**: Before reaching the LLM, F5 AI Guardrails evaluates the prompt against active security packages (PII Core, Prompt Injection, Restricted Topics, EU AI Act).
+3. **Automated Enforcement**:
+   * **If Allowed (HTTP 200)**: F5 Guardrails routes the prompt to the backing LLM provider (Azure OpenAI, AWS Bedrock, OpenAI) and streams tokens back to the user.
+   * **If Blocked (HTTP 400/403)**: F5 Guardrails drops the request, prevents LLM execution, and returns detailed security violation details.
+
+---
+
+### Request & Response Flow Diagrams
+
+#### **Inline Gateway Flow (Used by F5 SecureChat Enterprise)**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User / Web UI
+    participant App as F5 SecureChat App
+    participant F5 as F5 AI Guardrails Gateway
+    participant LLM as Upstream LLM (Azure / OpenAI / Bedrock)
+
+    User->>App: Submits Prompt ("tell me his SSN")
+    App->>F5: POST /openai/{provider}/chat/completions
+    Note over F5: Real-Time Policy Inspection<br/>(PII, Jailbreak, EU AI Act)
+    
+    alt Policy Violation Detected
+        F5-->>App: HTTP 400/403 Policy Block + Scanner Details
+        App-->>User: Displays Red Security Block Card + Telemetry Metrics
+    else Prompt Allowed
+        F5->>LLM: Forward Clean Prompt to Upstream Model
+        LLM-->>F5: Stream Response Tokens
+        F5-->>App: SSE Stream + Telemetry Data
+        App-->>User: Displays Blue Response Card + Tokens Saved
+    end
+```
+
+---
+
+### Architecture Comparison: Inline Gateway vs. Out-of-Band SCAN API
+
+F5 AI Security Guardrails supports two integration patterns. **F5 SecureChat Enterprise utilizes Pattern A**:
+
+```mermaid
+flowchart TD
+    subgraph PatternA["Pattern A: Inline Gateway (Used by this App)"]
+        direction LR
+        A1[Client App] -->|1. Standard OpenAI Request| A2[F5 Guardrails Gateway]
+        A2 -->|2. Inspects & Enforces| A3{Policy Allowed?}
+        A3 -->|Yes| A4[Upstream LLM Provider]
+        A3 -->|No| A5[Block & Return Incident]
+    end
+
+    subgraph PatternB["Pattern B: Out-of-Band SCAN Option (SDK / API)"]
+        direction LR
+        B1[Client App] -->|1. POST /scan_prompt| B2[F5 Guardrails Scan API]
+        B2 -->|2. Returns Pass/Fail Score| B1
+        B1 -->|3. If Passed, Call Directly| B3[Upstream LLM Provider]
+    end
+```
+
+| Feature / Property | Pattern A: Inline Gateway Proxy *(This App)* | Pattern B: Out-of-Band SCAN Option *(SDK)* |
+| :--- | :--- | :--- |
+| **Integration Complexity** | **Zero-Code Change** (OpenAI drop-in URL) | Requires custom SDK / dual API calls |
+| **Credential Management** | App only holds F5 key (LLM keys secured in F5) | App must manage F5 key AND LLM keys |
+| **Latency Impact** | Minimal (Single hop proxy streaming) | Higher (Two separate HTTP round-trips) |
+| **Enforcement Guarantee** | **100% Guaranteed** (LLM is unreachable directly) | Risk of developer bypass if scan call skipped |
+| **Scope for This App** | **IN SCOPE** | Out of Scope |
+
+---
+
 ## 📋 Prerequisites
 
-1. **Docker & Docker Compose** (Recommended) OR **Python 3.11+**.
+1. **Docker & Docker Compose** (Recommended) OR **Python 3.11+** OR **Kubernetes Cluster (with Helm 3)**.
 2. An active **F5 AI Security Guardrails** tenant account.
 
 ---
@@ -57,32 +133,68 @@ In your project settings under **Scanner Settings**, add scanners from the follo
 
 ---
 
-## 🚀 Quickstart (1-Command Docker Startup)
+## 🚀 Deployment Options
 
-### 1. Clone the Repository
+### Option 1: Docker Compose Quickstart
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/thnguyenf5/f5-securechat-enterprise.git
+   cd f5-securechat-enterprise
+   ```
+
+2. **Configure Environment Variables**:
+   Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` with your F5 Guardrails credentials:
+   ```env
+   F5_AI_GUARDRAILS_API_KEY="your_f5_guardrails_api_key_here"
+   F5_AI_GUARDRAILS_PROJECT_ID="your_f5_guardrails_project_id_here"
+   F5_AI_GUARDRAILS_BASE_URL="https://your-f5-guardrails-portal-url"
+   PORT=8000
+   ```
+
+3. **Launch Container**:
+   ```bash
+   docker-compose up -d
+   ```
+   Open **`http://localhost:8000`** in your browser!
+
+---
+
+### Option 2: Kubernetes Deployment via Helm ⛵
+
+The repository includes a cloud-native, vendor-agnostic Helm chart under `./chart/f5-securechat-enterprise`.
+
+#### **1. Basic Helm Installation**:
 ```bash
-git clone https://github.com/thnguyenf5/f5-securechat-enterprise.git
-cd f5-securechat-enterprise
+helm install f5-securechat ./chart/f5-securechat-enterprise \
+  --set env.apiKey="your_f5_api_key" \
+  --set env.projectId="your_f5_project_id" \
+  --set env.baseUrl="https://your-f5-portal-url"
 ```
 
-### 2. Configure Environment Variables
-Copy the template `.env.example` to `.env`:
+#### **2. Helm Installation with Ingress Enabled**:
 ```bash
-cp .env.example .env
-```
-Edit `.env` with your F5 Guardrails credentials:
-```env
-F5_AI_GUARDRAILS_API_KEY="your_f5_guardrails_api_key_here"
-F5_AI_GUARDRAILS_PROJECT_ID="your_f5_guardrails_project_id_here"
-F5_AI_GUARDRAILS_BASE_URL="https://your-f5-guardrails-portal-url"
-PORT=8000
+helm install f5-securechat ./chart/f5-securechat-enterprise \
+  --set env.apiKey="your_f5_api_key" \
+  --set env.projectId="your_f5_project_id" \
+  --set env.baseUrl="https://your-f5-portal-url" \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0].host="chat.example.com"
 ```
 
-### 3. Launch the Application
+#### **3. Helm Installation with Gateway API (`HTTPRoute`)**:
 ```bash
-docker-compose up -d
+helm install f5-securechat ./chart/f5-securechat-enterprise \
+  --set env.apiKey="your_f5_api_key" \
+  --set env.projectId="your_f5_project_id" \
+  --set env.baseUrl="https://your-f5-portal-url" \
+  --set gatewayApi.enabled=true \
+  --set gatewayApi.gatewayName="nginx-gateway"
 ```
-Open **`http://localhost:8000`** in your browser!
 
 ---
 
@@ -90,9 +202,9 @@ Open **`http://localhost:8000`** in your browser!
 
 | Variable Name | Description | Required | Default / Example |
 | :--- | :--- | :---: | :--- |
-| `F5_AI_GUARDRAILS_API_KEY` | API Key generated in F5 Guardrails Console | Yes | `your_f5_api_key_here` |
-| `F5_AI_GUARDRAILS_PROJECT_ID` | Project UUID from F5 Guardrails Console | Yes | `your_f5_project_id_here` |
-| `F5_AI_GUARDRAILS_BASE_URL` | Base URL of your F5 Guardrails Portal | No | `https://www.us1.calypsoai.app` |
+| `F5_AI_GUARDRAILS_API_KEY` | API Key generated in F5 Guardrails Console | **Yes** | `your_f5_api_key_here` |
+| `F5_AI_GUARDRAILS_PROJECT_ID` | Project UUID from F5 Guardrails Console | **Yes** | `your_f5_project_id_here` |
+| `F5_AI_GUARDRAILS_BASE_URL` | Base URL of your F5 Guardrails Portal | **Yes** | `https://your-f5-portal-url` |
 | `F5_AI_GUARDRAILS_ENDPOINT` | Custom proxy URL override | No | *Auto-discovered via API* |
 | `PORT` | Web application listening port | No | `8000` |
 
