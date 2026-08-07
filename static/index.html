@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F5 SecureChat Enterprise</title>
+  <style>
+    :root[data-theme="dark"] {
+      --bg-main: #1e222b;
+      --bg-sidebar: #171a21;
+      --bg-card: #252a36;
+      --bg-card-hover: #2d3342;
+      --bg-input: #2a303d;
+      --text-main: #f0f2f5;
+      --text-muted: #8c96a5;
+      --border-color: #323947;
+      --accent-red: #e63946;
+      --accent-red-bg: rgba(230, 57, 70, 0.12);
+      --accent-red-border: rgba(230, 57, 70, 0.4);
+      --accent-green: #2a9d8f;
+      --accent-green-bg: rgba(42, 157, 143, 0.15);
+      --accent-blue: #0284c7;
+      --accent-blue-bg: rgba(2, 132, 199, 0.12);
+      --accent-blue-border: rgba(2, 132, 199, 0.35);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    :root[data-theme="light"] {
+      --bg-main: #f8fafc;
+      --bg-sidebar: #f1f5f9;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f1f5f9;
+      --bg-input: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --accent-red: #dc2626;
+      --accent-red-bg: #fef2f2;
+      --accent-red-border: #fca5a5;
+      --accent-green: #059669;
+      --accent-green-bg: #ecfdf5;
+      --accent-blue: #0284c7;
+      --accent-blue-bg: #f0f9ff;
+      --accent-blue-border: #bae6fd;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top Navigation Header */
+    header {
+      height: 56px;
+      background-color: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .f5-logo-svg {
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .model-selector {
+      background: var(--bg-input);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn.active {
+      background: var(--accent-green-bg);
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+    }
+
+    /* Theme Pill Switch matching image */
+    .theme-pill-switch {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      outline: none;
+    }
+
+    .pill-track {
+      width: 58px;
+      height: 28px;
+      border-radius: 14px;
+      padding: 3px;
+      display: flex;
+      align-items: center;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    /* Light Mode Pill Track & Thumb */
+    :root[data-theme="light"] .pill-track {
+      background-color: #ffe89c;
+    }
+
+    :root[data-theme="light"] .pill-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background-color: #ffb800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translateX(0);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    :root[data-theme="light"] .sun-icon { display: block; }
+    :root[data-theme="light"] .moon-icon { display: none; }
+
+    /* Dark Mode Pill Track & Thumb */
+    :root[data-theme="dark"] .pill-track {
+      background-color: #0b2238;
+    }
+
+    :root[data-theme="dark"] .pill-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background-color: #1ca3ec;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translateX(30px);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    :root[data-theme="dark"] .sun-icon { display: none; }
+    :root[data-theme="dark"] .moon-icon { display: block; }
+
+    /* App Layout */
+    .app-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 56px);
+      position: relative;
+    }
+
+    /* Left Sidebar Toolbar & Flyout Drawer */
+    .sidebar-toolbar {
+      width: 52px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      gap: 16px;
+      z-index: 90;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover, .icon-btn.active {
+      background: var(--bg-card-hover);
+      color: var(--text-main);
+    }
+
+    .sidebar-drawer {
+      width: 240px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .sidebar-drawer.collapsed {
+      width: 0;
+      padding: 16px 0;
+      border-right: none;
+    }
+
+    .new-chat-btn {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+
+    .history-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      margin-bottom: 4px;
+      position: relative;
+    }
+
+    .history-item-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .history-actions {
+      display: none;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .history-item:hover .history-actions {
+      display: flex;
+    }
+
+    .delete-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 4px;
+      font-size: 0.85rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .delete-btn:hover {
+      color: var(--accent-red);
+      background: var(--accent-red-bg);
+    }
+
+    .history-item.active, .history-item:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-main);
+    }
+
+    /* Main Content Area */
+    .main-workspace {
+      flex: 1;
+      display: flex;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .chat-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      position: relative;
+    }
+
+    .messages-container {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      max-width: 80%;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 4px;
+      transition: all 0.2s;
+    }
+
+    .message:hover {
+      border-color: var(--border-color);
+      background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    .message.selected {
+      border-color: var(--accent-blue) !important;
+      box-shadow: 0 0 0 1px var(--accent-blue);
+      background-color: rgba(2, 132, 199, 0.08);
+    }
+
+    .message.user {
+      align-self: flex-end;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .message.user .bubble {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    .llm-response-card {
+      background-color: var(--accent-blue-bg);
+      border: 1px solid var(--accent-blue-border);
+      color: var(--text-main);
+      padding: 14px 16px;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+
+    .security-block-card {
+      background-color: var(--accent-red-bg);
+      border: 1px solid var(--accent-red-border);
+      color: var(--text-main);
+      padding: 14px 16px;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+
+    .input-area {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-card);
+    }
+
+    .input-box {
+      display: flex;
+      align-items: center;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 12px;
+    }
+
+    .input-box input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-size: 0.92rem;
+      outline: none;
+    }
+
+    .send-btn {
+      background: var(--accent-red);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Right Split Guardrails Analysis Panel */
+    .analysis-pane {
+      width: 50%;
+      background-color: var(--bg-card);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .analysis-pane.hidden {
+      display: none;
+    }
+
+    .analysis-header {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .session-badge {
+      background: var(--accent-green-bg);
+      border: 1px solid var(--accent-green);
+      color: var(--accent-green);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-row {
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .data-row td {
+      padding: 12px 8px;
+      font-size: 0.88rem;
+    }
+
+    .data-label {
+      font-weight: 600;
+      color: var(--text-muted);
+      width: 38%;
+    }
+
+    .data-value {
+      color: var(--text-main);
+      font-weight: 500;
+      word-break: break-word;
+    }
+
+    .status-blocked {
+      color: var(--accent-red);
+      font-weight: 700;
+    }
+
+    .status-allowed {
+      color: var(--accent-green);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Bar -->
+  <header>
+    <div class="brand">
+      <svg class="f5-logo-svg" width="32" height="32" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
+        <g data-name="Layer 2">
+          <g data-name="Layer 1">
+            <path fill="#e4002b" d="M940.37 894.53a30.85 30.85 0 0 1 9.47 22.94 32.43 32.43 0 0 1-55.4 23.08 32 32 0 0 1-9.44-23.08 32.54 32.54 0 0 1 32.37-32.57 30.88 30.88 0 0 1 23 9.63m3.81-3.75a36.65 36.65 0 0 0-26.8-11 37.72 37.72 0 1 0 26.8 64.32 37.71 37.71 0 0 0 0-53.36ZM923 915.65a18.8 18.8 0 0 1-6.93.92h-6.54v-15h6.23c4 0 7 .57 8.77 1.58s2.76 3.07 2.76 6a6.38 6.38 0 0 1-4.29 6.5m-20.75 22.29h7.28v-16.28h5.77c3.82 0 6.56.4 8.11 1.36 2.57 1.54 3.88 4.72 3.88 9.48v3.33l.14 1.25a3 3 0 0 1 .11.5c0 .2.06.27.19.36h6.76l-.24-.48a4.4 4.4 0 0 1-.35-2.11c-.09-1.14-.09-2.15-.09-3.07v-3.07a11.5 11.5 0 0 0-2.26-6.43c-1.54-2.21-3.95-3.51-7.19-4.08a17 17 0 0 0 6-2c2.77-1.75 4.06-4.56 4.06-8.2 0-5.18-2.06-8.73-6.4-10.49-2.39-1-6.14-1.49-11.3-1.49h-14.47Z"/>
+            <path fill="#fff" d="M958.59 620.31c2.68-53.34-7.17-110.8-53.58-162.79-47.7-51.41-128.17-95-293.72-105.22 8.6-26.83 16.12-51.41 24.06-76.52 99 3.48 187.06 10.61 262 20.34 5.92-26.85 9.13-53.1 15.26-78.43Q901.2 201 888.43 185.25c-35.65-4.12-71.2-13-109.46-17.9-51.73-6.68-105.88-11.45-164.38-14.15C577.75 262.93 531.7 401 484.46 543.7 730.72 565 825.42 631.37 820.1 725c-4.91 50.57-51.14 96.55-111.93 102-72.31 4.86-105.41-24.35-127.14-56.4-19.14-28.78-38.23-57.62-58.61-89-5.54-9.23-12.85-3.23-19.44 3.21a9738 9738 0 0 1-43.84 42.28c-9.48 8.24-7.37 15.32-4 22.23 13.77 32.46 26.59 62.22 39.54 91.76 21.56 13.21 122.9 31.25 198.69 25.58 51.36-4.32 115.57-24.18 168.65-64.16 52.43-40.71 90.65-95.5 96.57-182.19"/>
+            <path fill="#fff" d="M97.31 796.3q14.22 19.29 30.2 37.13c85.19 15.32 191.42 25.91 302.05 29.13-.37-11.48-.7-22.63-1-34.46-67.94-3.83-99.17-14.19-104.6-27.63-4.53-10.68-5.32-26.63-6.29-42.38-5.1-104.35-6.77-217.22-5-330.51 38-.66 75.83-1 115.53-1.43 19.24-8.77 37.34-17.44 56.54-26 0-13.72.09-26 .09-39.39-58.83.24-114.65 1.24-170.6 2.79 1.58-47.62 3.45-91.58 6.24-134.46 2-28.18 21.51-48.78 41.64-50.39 32.26-1.26 61.23 11.56 89.27 24 15.46 7.49 30.7 14.94 46.54 23.05 7.56 2 16.54 3.78 21.95-2.79 9.39-11.12 18.31-21.45 27.55-32.26 5-7.39 2.84-11.63.79-14.35-20.12-15.89-39.05-30.18-58.21-44.54-11.83-8-30.51-9.76-48.92-9.76-7.34 0-14.71.27-21.55.49-18.92 1-43 4-82.43 13.62-88.81 23.92-195.43 85.84-206.7 187.11-1.45 16.53-2.66 32.9-3.73 49.81-25.08 2.11-47.91 3.92-69.46 6-1.58 19.36-2.64 38-3.52 57.59 21.82-1.28 44.58-2.42 69.94-3.52-3.76 106.16-.2 212.1 9.77 310.22 1.67 14.91 3.3 29.69 1.36 39.24-1.59 9.12-16.27 13.85-37.45 13.69"/>
+            <path fill="#e4002b" d="M912.66 217.69c-6.13 25.33-9.34 51.58-15.26 78.43-75-9.73-163.08-16.86-262-20.34-7.94 25.11-15.46 49.69-24.06 76.52 165.55 10.18 246 53.81 293.72 105.22 46.41 52 56.26 109.45 53.58 162.79-5.97 86.69-44.19 141.48-96.64 182.1-53.08 40-117.29 59.84-168.65 64.16-75.79 5.67-177.13-12.37-198.69-25.57-13-29.54-25.77-59.3-39.54-91.76-3.35-6.91-5.46-14 4-22.23a9738 9738 0 0 1 43.84-42.28c6.59-6.44 13.9-12.44 19.44-3.21 20.38 31.43 39.48 60.27 58.61 89 21.73 32.05 54.83 61.26 127.14 56.4 60.79-5.44 107-51.42 111.93-102 5.32-93.6-89.38-160-335.64-181.27C531.7 401 577.75 262.93 614.59 153.2c58.5 2.7 112.65 7.47 164.38 14.15 38.26 4.87 73.81 13.78 109.46 17.9C796.77 72.26 656.88 0 500 0 223.87 0 0 223.86 0 500a497.64 497.64 0 0 0 97.31 296.3c21.18.16 35.86-4.57 37.45-13.7 1.94-9.55.31-24.33-1.36-39.24-10-98.12-13.53-204.06-9.77-310.22-25.36 1.1-48.12 2.24-69.94 3.52.88-19.63 1.94-38.23 3.52-57.59 21.55-2.07 44.38-3.88 69.46-6 1.07-16.91 2.28-33.28 3.74-49.81C141.67 222 248.29 160.08 337.1 136.18c39.41-9.6 63.51-12.63 82.43-13.62 6.84-.22 14.21-.49 21.55-.49 18.41 0 37.09 1.72 48.92 9.76 19.16 14.36 38.09 28.65 58.22 44.54 2 2.72 4.2 7-.8 14.35-9.24 10.81-18.16 21.14-27.55 32.26-5.41 6.57-14.39 4.84-21.95 2.79-15.84-8.11-31.08-15.56-46.54-23.05-28-12.46-57-25.28-89.27-24-20.13 1.61-39.62 22.21-41.64 50.39-2.79 42.88-4.66 86.84-6.24 134.46C370.18 362 426 361 484.85 360.74c0 13.39-.09 25.67-.09 39.39-19.2 8.58-37.3 17.25-56.54 26-39.7.46-77.48.77-115.53 1.43-1.76 113.29-.09 226.16 5 330.51 1 15.75 1.76 31.7 6.29 42.38 5.43 13.44 36.66 23.8 104.6 27.63.27 11.83.6 23 1 34.46-110.63-3.22-216.86-13.81-302-29.13C219.07 935.63 352 1000 500 1000c276.15 0 500-223.87 500-500a497.6 497.6 0 0 0-87.34-282.31"/>
+          </g>
+        </g>
+      </svg>
+      <span>F5 SecureChat Enterprise</span>
+    </div>
+    <div class="header-controls">
+      <select class="model-selector">
+        <option value="f5-protected-llm">F5 Protected LLM backend</option>
+      </select>
+      <button class="toggle-btn active" id="analysisToggle" onclick="toggleAnalysis()">
+        🛡️ Guardrails Analysis [ON]
+      </button>
+      <button class="theme-pill-switch" id="themeToggle" onclick="toggleTheme()" title="Toggle Light/Dark Theme">
+        <div class="pill-track">
+          <div class="pill-thumb">
+            <!-- Sun Icon for Light Mode -->
+            <svg class="sun-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5" fill="#FFFFFF"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <!-- Moon Icon for Dark Mode -->
+            <svg class="moon-icon" width="12" height="12" viewBox="0 0 24 24" fill="#FFFFFF">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </div>
+        </div>
+      </button>
+    </div>
+  </header>
+
+  <!-- App Workspace -->
+  <div class="app-container">
+
+    <!-- Left Vertical Toolbar -->
+    <div class="sidebar-toolbar">
+      <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+        <button class="icon-btn active" onclick="toggleDrawer()" title="Chat History">💬</button>
+        <button class="icon-btn" onclick="clearChat()" title="New Chat">➕</button>
+      </div>
+      <div style="margin-top:auto;">
+        <button class="icon-btn" id="syncProviderBtn" onclick="syncProviderConfig()" title="Sync F5 Active Provider Profile">🔄</button>
+      </div>
+    </div>
+
+    <!-- Left Collapsible Flyout Drawer -->
+    <div class="sidebar-drawer" id="sidebarDrawer">
+      <button class="new-chat-btn" onclick="clearChat()">➕ New Chat</button>
+      <div class="history-title">Chat History</div>
+      <div id="historyList" style="flex:1; overflow-y:auto;"></div>
+      <div style="margin-top:auto; padding-top:12px; border-top:1px solid var(--border-color);">
+        <button class="new-chat-btn" id="syncDrawerBtn" onclick="syncProviderConfig()" style="margin-bottom:0;" title="Sync Active Provider with F5 Management Plane">
+          🔄 Sync Provider
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Workspace (50/50 Split View) -->
+    <div class="main-workspace">
+
+      <!-- Left Chat Pane -->
+      <div class="chat-pane">
+        <div class="messages-container" id="messagesContainer">
+          <!-- Messages inserted dynamically -->
+        </div>
+
+        <div class="input-area">
+          <form class="input-box" onsubmit="handleSend(event)">
+            <input type="text" id="userInput" placeholder="Ask a question or enter a prompt..." autocomplete="off">
+            <button type="submit" class="send-btn">Send</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Right Guardrails Analysis Panel -->
+      <div class="analysis-pane" id="analysisPane">
+        <div class="analysis-header">
+          <span>Guardrails Analysis</span>
+        </div>
+
+        <div class="session-badge" id="sessionBadge">
+          ⚡ Session Total: ~0 Est. Tokens Saved | 0 Threats Blocked
+        </div>
+
+        <table class="data-table">
+          <tr class="data-row">
+            <td class="data-label">1. Inspected Text</td>
+            <td class="data-value" id="valInspectedText">-</td>
+          </tr>
+          <tr class="data-row">
+            <td class="data-label">2. Status</td>
+            <td class="data-value" id="valStatus">-</td>
+          </tr>
+          <tr class="data-row">
+            <td class="data-label">3. Triggered Scanner</td>
+            <td class="data-value" id="valScanner">-</td>
+          </tr>
+          <tr class="data-row">
+            <td class="data-label">4. Risk Score</td>
+            <td class="data-value" id="valRiskScore">-</td>
+          </tr>
+          <tr class="data-row">
+            <td class="data-label">5. Confidence</td>
+            <td class="data-value" id="valConfidence">-</td>
+          </tr>
+          <tr class="data-row">
+            <td class="data-label">6. Incident ID</td>
+            <td class="data-value" id="valIncidentId">-</td>
+          </tr>
+          <tr class="data-row">
+            <td class="data-label">7. Estimated Token Savings</td>
+            <td class="data-value" id="valTokenSavings">-</td>
+          </tr>
+          <tr class="data-row">
+            <td class="data-label">8. Latency</td>
+            <td class="data-value" id="valLatency">-</td>
+          </tr>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let sessionSavedTokens = 0;
+    let sessionBlockedThreats = 0;
+    let currentSessionId = null;
+    let chatSessions = JSON.parse(localStorage.getItem("f5_chat_sessions") || "[]");
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute("data-theme") || "dark";
+      const nextTheme = current === "dark" ? "light" : "dark";
+      html.setAttribute("data-theme", nextTheme);
+    }
+
+    function toggleDrawer() {
+      const drawer = document.getElementById("sidebarDrawer");
+      drawer.classList.toggle("collapsed");
+    }
+
+    function toggleAnalysis() {
+      const pane = document.getElementById("analysisPane");
+      const btn = document.getElementById("analysisToggle");
+      pane.classList.toggle("hidden");
+      if (pane.classList.contains("hidden")) {
+        btn.classList.remove("active");
+        btn.innerText = "🛡️ Guardrails Analysis [OFF]";
+      } else {
+        btn.classList.add("active");
+        btn.innerText = "🛡️ Guardrails Analysis [ON]";
+      }
+    }
+
+    function saveSessions() {
+      localStorage.setItem("f5_chat_sessions", JSON.stringify(chatSessions));
+    }
+
+    function renderHistoryList() {
+      const container = document.getElementById("historyList");
+      if (!container) return;
+      container.innerHTML = "";
+      if (chatSessions.length === 0) {
+        container.innerHTML = `<div style="font-size:0.8rem; color:var(--text-muted); padding:8px 10px;">No chat history yet</div>`;
+        return;
+      }
+      chatSessions.forEach(session => {
+        const item = document.createElement("div");
+        item.className = `history-item ${session.id === currentSessionId ? "active" : ""}`;
+        item.onclick = () => loadSession(session.id);
+        item.innerHTML = `
+          <span class="history-item-title">${escapeHtml(session.title || "New Conversation")}</span>
+          <div class="history-actions">
+            <button class="delete-btn" onclick="deleteSession(event, '${session.id}')" title="Delete Chat">🗑️</button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function deleteSession(e, id) {
+      e.stopPropagation();
+      chatSessions = chatSessions.filter(s => s.id !== id);
+      saveSessions();
+      if (currentSessionId === id) {
+        clearChat();
+      } else {
+        renderHistoryList();
+      }
+    }
+
+    function createNewSession(firstPrompt = "") {
+      const id = "sess_" + Date.now();
+      const title = firstPrompt ? (firstPrompt.length > 25 ? firstPrompt.substring(0, 25) + "..." : firstPrompt) : "New Conversation";
+      const newSess = { id, title, messages: [], telemetry: null };
+      chatSessions.unshift(newSess);
+      currentSessionId = id;
+      saveSessions();
+      renderHistoryList();
+      return newSess;
+    }
+
+    function loadSession(id) {
+      currentSessionId = id;
+      renderHistoryList();
+      const session = chatSessions.find(s => s.id === id);
+      const container = document.getElementById("messagesContainer");
+      container.innerHTML = "";
+      if (session && session.messages) {
+        session.messages.forEach(msg => appendMessage(msg.role, msg.text, false));
+        if (session.telemetry) {
+          updateTelemetry(session.telemetry, false);
+        }
+      }
+    }
+
+    function clearChat() {
+      const newSess = createNewSession();
+      document.getElementById("messagesContainer").innerHTML = `
+        <div style="text-align:center; margin-top:60px; color:var(--text-muted);">
+          <div style="font-size:1.8rem; font-weight:700; margin-bottom:8px; color:var(--text-main);">F5 SecureChat Enterprise</div>
+          <div style="font-size:0.9rem;">Ask a question to begin a new protected conversation</div>
+        </div>
+      `;
+      // Reset telemetry view
+      document.getElementById("valInspectedText").innerText = "-";
+      document.getElementById("valStatus").innerText = "-";
+      document.getElementById("valStatus").className = "data-value";
+      document.getElementById("valScanner").innerText = "-";
+      document.getElementById("valRiskScore").innerText = "-";
+      document.getElementById("valConfidence").innerText = "-";
+      document.getElementById("valIncidentId").innerText = "-";
+      document.getElementById("valTokenSavings").innerText = "-";
+      document.getElementById("valLatency").innerText = "-";
+
+      // Auto expand sidebar drawer if collapsed
+      const drawer = document.getElementById("sidebarDrawer");
+      if (drawer && drawer.classList.contains("collapsed")) {
+        drawer.classList.remove("collapsed");
+      }
+
+      // Auto focus prompt input
+      const input = document.getElementById("userInput");
+      if (input) input.focus();
+    }
+
+    async function handleSend(e) {
+      e.preventDefault();
+      const input = document.getElementById("userInput");
+      const text = input.value.trim();
+      if (!text) return;
+
+      if (!currentSessionId) {
+        createNewSession(text);
+        const container = document.getElementById("messagesContainer");
+        if (container.querySelector("div[style*='margin-top:60px']")) {
+          container.innerHTML = "";
+        }
+      }
+
+      input.value = "";
+      appendMessage("user", text, true);
+
+      // Send to FastAPI /v1/chat/completions
+      try {
+        const response = await fetch("/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [{ role: "user", content: text }],
+            stream: true
+          })
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let assistantBubble = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+          
+          for (let line of lines) {
+            if (line.startsWith("data: ")) {
+              const dataStr = line.replace("data: ", "").trim();
+              if (dataStr === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(dataStr);
+                const delta = parsed.choices[0].delta;
+                
+                if (delta.content) {
+                  if (!assistantBubble) {
+                    assistantBubble = appendMessage("assistant", delta.content, true);
+                  } else {
+                    assistantBubble.node.innerText += delta.content;
+                  }
+                }
+
+                if (delta.f5_telemetry) {
+                  updateTelemetry(delta.f5_telemetry, true);
+                }
+              } catch (err) {}
+            }
+          }
+        }
+      } catch (err) {
+        appendMessage("assistant", "🛑 Connection error. Please check server status.", true);
+      }
+    }
+
+    let currentTelemetryMap = {};
+
+    function selectMessage(msgId) {
+      document.querySelectorAll(".message").forEach(el => el.classList.remove("selected"));
+      const msgDiv = document.getElementById(msgId);
+      if (msgDiv) {
+        msgDiv.classList.add("selected");
+      }
+      if (currentTelemetryMap[msgId]) {
+        renderTelemetryView(currentTelemetryMap[msgId]);
+      }
+    }
+
+    function appendMessage(role, text, saveToSession = true, telemetryObj = null, customId = null) {
+      const container = document.getElementById("messagesContainer");
+      
+      // Clear welcome banner
+      if (container.querySelector("div[style*='margin-top:60px']")) {
+        container.innerHTML = "";
+      }
+
+      const msgId = customId || ("msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7));
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `message ${role}`;
+      msgDiv.id = msgId;
+      msgDiv.onclick = () => selectMessage(msgId);
+
+      if (role === "user") {
+        msgDiv.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>`;
+      } else {
+        const isBlock = text.includes("🛑") || text.includes("Policy Block");
+        const cardClass = isBlock ? "security-block-card" : "llm-response-card";
+        msgDiv.innerHTML = `<div class="${cardClass}">${escapeHtml(text)}</div>`;
+      }
+
+      container.appendChild(msgDiv);
+      container.scrollTop = container.scrollHeight;
+
+      if (telemetryObj) {
+        currentTelemetryMap[msgId] = telemetryObj;
+      }
+
+      // Auto select latest message
+      selectMessage(msgId);
+
+      if (saveToSession && currentSessionId) {
+        const session = chatSessions.find(s => s.id === currentSessionId);
+        if (session) {
+          session.messages.push({ id: msgId, role, text, telemetry: telemetryObj });
+          saveSessions();
+        }
+      }
+
+      return {
+        id: msgId,
+        node: msgDiv.querySelector(".bubble") || msgDiv.querySelector(".llm-response-card") || msgDiv.querySelector(".security-block-card")
+      };
+    }
+
+    function loadSession(id) {
+      currentSessionId = id;
+      currentTelemetryMap = {};
+      renderHistoryList();
+      const session = chatSessions.find(s => s.id === id);
+      const container = document.getElementById("messagesContainer");
+      container.innerHTML = "";
+      if (session && session.messages) {
+        session.messages.forEach(msg => {
+          // Fallback to session.telemetry for legacy chat items
+          const tel = msg.telemetry || session.telemetry;
+          const res = appendMessage(msg.role, msg.text, false, tel, msg.id);
+          if (tel) {
+            currentTelemetryMap[res.id] = tel;
+          }
+        });
+        if (session.messages.length > 0) {
+          const lastMsg = session.messages[session.messages.length - 1];
+          const tel = lastMsg.telemetry || session.telemetry;
+          if (tel) {
+            renderTelemetryView(tel);
+          }
+        }
+      }
+    }
+
+    function updateTelemetry(t, saveToSession = true, msgId = null) {
+      if (msgId) {
+        currentTelemetryMap[msgId] = t;
+      }
+      renderTelemetryView(t);
+
+      sessionSavedTokens += (t.total_tokens_saved || 0);
+      sessionBlockedThreats += (t.status && t.status.includes("BLOCKED") ? 1 : 0);
+      document.getElementById("sessionBadge").innerText = `⚡ Session Total: ~${sessionSavedTokens} Est. Tokens Saved | ${sessionBlockedThreats} Threats Blocked`;
+
+      if (saveToSession && currentSessionId) {
+        const session = chatSessions.find(s => s.id === currentSessionId);
+        if (session && session.messages.length > 0) {
+          const len = session.messages.length;
+          session.messages[len - 1].telemetry = t;
+          if (len >= 2) {
+            session.messages[len - 2].telemetry = t;
+            const prevMsgId = session.messages[len - 2].id;
+            if (prevMsgId) currentTelemetryMap[prevMsgId] = t;
+          }
+          saveSessions();
+        }
+      }
+    }
+
+    function renderTelemetryView(t) {
+      if (!t) return;
+      document.getElementById("valInspectedText").innerText = t.inspected_text || "-";
+      document.getElementById("valStatus").innerText = t.status || "-";
+      document.getElementById("valStatus").className = t.status && t.status.includes("BLOCKED") ? "data-value status-blocked" : "data-value status-allowed";
+      document.getElementById("valScanner").innerText = t.triggered_scanner || "-";
+      document.getElementById("valRiskScore").innerText = t.risk_score || "-";
+      document.getElementById("valConfidence").innerText = t.confidence || "-";
+      document.getElementById("valIncidentId").innerText = t.incident_id || "-";
+      document.getElementById("valTokenSavings").innerText = t.total_tokens_saved ? `~${t.total_tokens_saved} Est. Tokens (${t.input_tokens} Input + ${t.prevented_output_tokens} Est. Output)` : "-";
+      document.getElementById("valLatency").innerText = t.latency_ms || "-";
+    }
+
+    async function syncProviderConfig() {
+      const btn = document.getElementById("syncProviderBtn");
+      const drawerBtn = document.getElementById("syncDrawerBtn");
+
+      if (btn) btn.innerText = "⏳";
+      if (drawerBtn) {
+        drawerBtn.innerText = "⏳ Syncing...";
+        drawerBtn.disabled = true;
+      }
+
+      try {
+        const res = await fetch("/api/provider/sync", { method: "POST" });
+        const data = await res.json();
+        if (data.status === "success") {
+          if (btn) btn.innerText = "✓";
+          if (drawerBtn) drawerBtn.innerText = `✓ ${data.active_provider}`;
+
+          setTimeout(() => {
+            if (btn) btn.innerText = "🔄";
+            if (drawerBtn) {
+              drawerBtn.innerText = "🔄 Sync Provider";
+              drawerBtn.disabled = false;
+            }
+          }, 3500);
+        }
+      } catch (err) {
+        if (btn) btn.innerText = "⚠️";
+        if (drawerBtn) {
+          drawerBtn.innerText = "⚠️ Sync Failed";
+          drawerBtn.disabled = false;
+        }
+        setTimeout(() => {
+          if (btn) btn.innerText = "🔄";
+          if (drawerBtn) {
+            drawerBtn.innerText = "🔄 Sync Provider";
+            drawerBtn.disabled = false;
+          }
+        }, 3500);
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    window.onload = function() {
+      clearChat();
+    };
+  </script>
+</body>
+</html>
