@@ -15,14 +15,6 @@
 
 ---
 
-## 📸 Application Screenshots
-
-| Dark Mode Split-View Workspace | Light Mode Workspace |
-| :---: | :---: |
-| <img src="static/screenshots/dark_mode_workspace.png" alt="Dark Mode Workspace" width="100%"/> | <img src="static/screenshots/light_mode_workspace.png" alt="Light Mode Workspace" width="100%"/> |
-
----
-
 ## 📋 Prerequisites
 
 1. **Docker & Docker Compose** (Recommended) OR **Python 3.11+**.
@@ -44,7 +36,7 @@ Navigate to your enterprise **F5 AI Security Guardrails Portal** and sign in wit
 4. Click **Create**.
 
 ### Step 3: Enable Security Scanners
-In your project settings under **Scanner Settings**, enable the following 4 security packages:
+In your project settings under **Scanner Settings**, add scanners from the following pre-built security packages or create your own custom guardrail:
 * **EU AI Act package**
 * **Restricted topics package**
 * **PII core package**
@@ -103,6 +95,14 @@ Open **`http://localhost:8000`** in your browser!
 | `F5_AI_GUARDRAILS_BASE_URL` | Base URL of your F5 Guardrails Portal | No | `https://www.us1.calypsoai.app` |
 | `F5_AI_GUARDRAILS_ENDPOINT` | Custom proxy URL override | No | *Auto-discovered via API* |
 | `PORT` | Web application listening port | No | `8000` |
+
+---
+
+## 📸 Application Screenshots
+
+| Dark Mode Split-View Workspace | Light Mode Workspace |
+| :---: | :---: |
+| <img src="static/screenshots/dark_mode_workspace.png" alt="Dark Mode Workspace" width="100%"/> | <img src="static/screenshots/light_mode_workspace.png" alt="Light Mode Workspace" width="100%"/> |
 
 ---
 
