@@ -17,7 +17,29 @@ API_KEY = os.environ.get("F5_AI_GUARDRAILS_API_KEY", "")
 PROJECT_ID = os.environ.get("F5_AI_GUARDRAILS_PROJECT_ID", "your-f5-project-id")
 BASE_URL = os.environ.get("F5_AI_GUARDRAILS_BASE_URL", "https://www.us1.calypsoai.app").rstrip("/")
 active_provider_name = "azure-open-ai"
-active_calypso_endpoint = f"{BASE_URL}/openai/azure-open-ai/chat/completions"
+scanner_catalog = {}
+
+async def sync_f5_scanner_catalog():
+    """
+    Queries F5 Guardrails API to populate scanner ID -> friendly name catalog mapping.
+    """
+    global scanner_catalog
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            url = f"{BASE_URL}/backend/v1/projects/{PROJECT_ID}/scanners"
+            resp = await client.get(url, headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "x-calypso-project-id": PROJECT_ID
+            })
+            if resp.status_code == 200:
+                data = resp.json()
+                scanners = data.get("projectScanners", {}).get("scanners", {})
+                for sid, sinfo in scanners.items():
+                    if isinstance(sinfo, dict) and sinfo.get("name"):
+                        scanner_catalog[sid] = sinfo.get("name")
+                print(f"[F5 GUARDRAILS SYNC] Loaded {len(scanner_catalog)} user-defined guardrail names into scanner catalog.")
+    except Exception as e:
+        print(f"[F5 GUARDRAILS SYNC WARNING] Failed to sync scanner catalog: {e}")
 
 async def sync_f5_provider_config() -> tuple:
     """
@@ -26,6 +48,9 @@ async def sync_f5_provider_config() -> tuple:
     """
     global active_provider_name, active_calypso_endpoint
     
+    # Sync scanner catalog first
+    await sync_f5_scanner_catalog()
+
     # Check if explicit custom endpoint override is provided in env
     env_endpoint = os.environ.get("F5_AI_GUARDRAILS_ENDPOINT", "")
     if env_endpoint and "/auto" not in env_endpoint and "wise-openai" not in env_endpoint and "azure-open-ai" not in env_endpoint:
@@ -67,7 +92,8 @@ async def api_sync_provider():
     return {
         "status": "success",
         "active_provider": provider_name,
-        "endpoint_url": endpoint
+        "endpoint_url": endpoint,
+        "scanners_loaded": len(scanner_catalog)
     }
 PORT = int(os.environ.get("PORT", "8000"))
 
@@ -125,14 +151,21 @@ def parse_f5_scanner(user_prompt: str, err_j: dict) -> tuple:
         if failed_scanners and not exact_scanner:
             failed_names = []
             for s in failed_scanners:
+                sid = s.get("scanner_id", "")
                 s_name = s.get("scanner_name") or s.get("name") or s.get("rule") or s.get("category")
+                
+                # Check dynamic scanner catalog cache for user-defined guardrail name
+                if not s_name and sid and sid in scanner_catalog:
+                    s_name = scanner_catalog[sid]
+
                 if not s_name and s.get("data", {}).get("type"):
                     dtype = s.get("data", {}).get("type")
                     if dtype != "custom":
                         s_name = dtype.title() + " Scanner"
-                if not s_name and s.get("scanner_id"):
-                    sid = s.get("scanner_id")
+
+                if not s_name and sid:
                     s_name = f"Custom Guardrail ({sid[:8]})"
+
                 if s_name and s_name not in failed_names:
                     failed_names.append(s_name)
             if failed_names:
@@ -151,6 +184,7 @@ def parse_f5_scanner(user_prompt: str, err_j: dict) -> tuple:
         msg = f"🛑 [F5 Guardrails Policy Block]: {clean_msg}"
         risk = "95% (High)"
         return scanner_title, msg, risk
+
 
     if is_policy_block:
         scanner = "F5 AI Security Guardrail"
