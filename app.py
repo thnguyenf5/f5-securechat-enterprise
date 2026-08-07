@@ -87,45 +87,61 @@ def count_tokens(text: str) -> int:
 
 def parse_f5_scanner(user_prompt: str, err_j: dict) -> tuple:
     """
-    Parses F5 AI Guardrails error details and prompt content to identify the exact scanner rule triggered.
+    Parses exact F5 AI Guardrails error details directly from the API response payload.
+    Does NOT use client-side keyword guessing. Returns exact details or raw error message for troubleshooting.
     Returns (scanner_name, block_message, risk_score)
     """
     err_detail = ""
-    if isinstance(err_j, dict):
-        err_detail = str(err_j.get("detail", "")) + " " + str(err_j.get("message", ""))
+    exact_scanner = ""
     
-    full_text = (user_prompt + " " + err_detail).lower()
+    if isinstance(err_j, dict):
+        # Extract raw detail or message string from API response
+        err_detail = str(err_j.get("detail", "")).strip() or str(err_j.get("message", "")).strip()
+        
+        # Check direct JSON keys returned by F5 Guardrails / Calypso API
+        for key in ["scanner", "scanner_name", "rule", "category", "violation", "trigger"]:
+            val = err_j.get(key)
+            if val and isinstance(val, str) and val.strip():
+                exact_scanner = val.strip()
+                break
 
-    # 1. Prompt Injection & Jailbreak Scanner
-    if any(k in full_text for k in ["ignore", "jailbreak", "dan mode", "system prompt", "override", "bypass", "prompt injection", "pirate", "instructions"]):
-        scanner = "Prompt Injection & Jailbreak Detector"
-        msg = "🛑 [F5 Guardrails Policy Block]: Prompt Injection or Jailbreak Attempt Detected."
-        risk = "99% (Critical)"
-    # 2. Secret & API Key Exfiltration Scanner
-    elif any(k in full_text for k in ["api key", "aws_secret", "token", "password", "private key", "credentials", "secret"]):
-        scanner = "Secret & API Key Leakage Scanner"
-        msg = "🛑 [F5 Guardrails Policy Block]: Secret or API Credential Leakage Detected."
-        risk = "96% (High)"
-    # 3. Financial & Credit Card Data Scanner
-    elif any(k in full_text for k in ["credit card", "cvv", "bank account", "routing number", "iban", "card number"]):
-        scanner = "Financial & PCI-DSS Data Scanner"
-        msg = "🛑 [F5 Guardrails Policy Block]: Financial Data / PCI Violation Detected."
-        risk = "97% (Critical)"
-    # 4. Harmful Intent & Exploit Scanner
-    elif any(k in full_text for k in ["hack", "exploit", "ddos", "malware", "payload", "virus", "vulnerability"]):
-        scanner = "Malware & Harmful Instruction Scanner"
-        msg = "🛑 [F5 Guardrails Policy Block]: Harmful Intent / Exploit Instruction Detected."
+    # If scanner wasn't in a dedicated JSON key, attempt parsing from string patterns like "blocked request: <scanner>"
+    if not exact_scanner and err_detail:
+        err_lower = err_detail.lower()
+        if "blocked request:" in err_lower:
+            parts = err_detail.split("blocked request:")
+            if len(parts) > 1 and parts[1].strip():
+                exact_scanner = parts[1].strip()
+        elif "blocked request -" in err_lower:
+            parts = err_detail.split("blocked request -")
+            if len(parts) > 1 and parts[1].strip():
+                exact_scanner = parts[1].strip()
+
+    # If exact scanner was identified from F5 Guardrails
+    if exact_scanner:
+        scanner_title = exact_scanner.strip(" .").title()
+        if not scanner_title.lower().endswith(("scanner", "guardrail", "detector", "policy")):
+            scanner_title += " Guardrail"
+        
+        block_text = err_detail if err_detail else f"{exact_scanner.strip(' .')} Detected."
+        msg = f"🛑 [F5 Guardrails Policy Block]: {block_text}"
         risk = "95% (High)"
-    # 5. PII & SSN Data Scanner (Default for SSN/PII)
-    else:
-        scanner = "PII & SSN Data Scanner"
-        msg = "🛑 [F5 Guardrails Policy Block]: Sensitive PII / SSN Extraction Detected."
-        risk = "98% (Critical)"
+        return scanner_title, msg, risk
 
-    if err_detail and "cai guardrails blocked" in err_detail.lower():
-        msg = f"🛑 [F5 Guardrails Policy Block]: {err_detail.strip()}"
+    # Fallback: No keyword guessing. Display raw error details directly for easy troubleshooting.
+    scanner = "F5 AI Security Guardrail"
+    if err_detail:
+        msg = f"🛑 [F5 Guardrails Policy Block]: {err_detail}"
+    elif err_j:
+        msg = f"🛑 [F5 Guardrails Policy Block]: {json.dumps(err_j)}"
+    else:
+        msg = "🛑 [F5 Guardrails Policy Block]: Security Policy Violation Detected."
+    risk = "95% (High)"
 
     return scanner, msg, risk
+
+
+
 
 # Serve static UI files
 static_dir = os.path.join(os.path.dirname(__file__), "static")
