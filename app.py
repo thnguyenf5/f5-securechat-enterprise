@@ -88,57 +88,84 @@ def count_tokens(text: str) -> int:
 def parse_f5_scanner(user_prompt: str, err_j: dict) -> tuple:
     """
     Parses exact F5 AI Guardrails error details directly from the API response payload.
-    Does NOT use client-side keyword guessing. Returns exact details or raw error message for troubleshooting.
+    Unwraps nested error objects (cai_error) and distinguishes security policy blocks from API system errors.
     Returns (scanner_name, block_message, risk_score)
     """
     err_detail = ""
     exact_scanner = ""
+    is_policy_block = False
     
-    if isinstance(err_j, dict):
-        # Extract raw detail or message string from API response
-        err_detail = str(err_j.get("detail", "")).strip() or str(err_j.get("message", "")).strip()
+    # 1. Unwrap nested "error" dict if present in API payload
+    err_obj = err_j
+    if isinstance(err_j, dict) and isinstance(err_j.get("error"), dict):
+        err_obj = err_j["error"]
+    
+    if isinstance(err_obj, dict):
+        err_detail = str(err_obj.get("message", "")).strip() or str(err_obj.get("detail", "")).strip()
         
-        # Check direct JSON keys returned by F5 Guardrails / Calypso API
+        # Check direct scanner/rule keys
         for key in ["scanner", "scanner_name", "rule", "category", "violation", "trigger"]:
-            val = err_j.get(key)
+            val = err_obj.get(key) or (err_j.get(key) if isinstance(err_j, dict) else None)
             if val and isinstance(val, str) and val.strip():
                 exact_scanner = val.strip()
                 break
 
-    # If scanner wasn't in a dedicated JSON key, attempt parsing from string patterns like "blocked request: <scanner>"
-    if not exact_scanner and err_detail:
-        err_lower = err_detail.lower()
-        if "blocked request:" in err_lower:
-            parts = err_detail.split("blocked request:")
-            if len(parts) > 1 and parts[1].strip():
-                exact_scanner = parts[1].strip()
-        elif "blocked request -" in err_lower:
-            parts = err_detail.split("blocked request -")
-            if len(parts) > 1 and parts[1].strip():
-                exact_scanner = parts[1].strip()
+    # 2. Inspect cai_error for guardrail outcome & failed scanners
+    cai_error = {}
+    if isinstance(err_obj, dict) and isinstance(err_obj.get("cai_error"), dict):
+        cai_error = err_obj["cai_error"]
+    elif isinstance(err_j, dict) and isinstance(err_j.get("cai_error"), dict):
+        cai_error = err_j["cai_error"]
 
-    # If exact scanner was identified from F5 Guardrails
+    if cai_error:
+        if cai_error.get("outcome") == "blocked":
+            is_policy_block = True
+        scanner_results = cai_error.get("scanner_results", [])
+        failed_scanners = [s for s in scanner_results if s.get("outcome") == "failed"]
+        if failed_scanners and not exact_scanner:
+            failed_names = []
+            for s in failed_scanners:
+                s_name = s.get("scanner_name") or s.get("name") or s.get("rule") or s.get("category")
+                if not s_name and s.get("data", {}).get("type"):
+                    dtype = s.get("data", {}).get("type")
+                    if dtype != "custom":
+                        s_name = dtype.title() + " Scanner"
+                if not s_name and s.get("scanner_id"):
+                    sid = s.get("scanner_id")
+                    s_name = f"Custom Guardrail ({sid[:8]})"
+                if s_name and s_name not in failed_names:
+                    failed_names.append(s_name)
+            if failed_names:
+                exact_scanner = ", ".join(failed_names)
+
+    # Detect if message indicates policy block vs system/API error
+    if "blocked" in err_detail.lower() or "guardrail" in err_detail.lower():
+        is_policy_block = True
+
+    # 3. Format output scanner title & clean message
     if exact_scanner:
         scanner_title = exact_scanner.strip(" .").title()
-        if not scanner_title.lower().endswith(("scanner", "guardrail", "detector", "policy")):
+        if not any(k in scanner_title.lower() for k in ["scanner", "guardrail", "detector", "policy"]):
             scanner_title += " Guardrail"
-        
-        block_text = err_detail if err_detail else f"{exact_scanner.strip(' .')} Detected."
-        msg = f"🛑 [F5 Guardrails Policy Block]: {block_text}"
+        clean_msg = err_detail if err_detail else f"{exact_scanner.strip()} Triggered."
+        msg = f"🛑 [F5 Guardrails Policy Block]: {clean_msg}"
         risk = "95% (High)"
         return scanner_title, msg, risk
 
-    # Fallback: No keyword guessing. Display raw error details directly for easy troubleshooting.
-    scanner = "F5 AI Security Guardrail"
-    if err_detail:
-        msg = f"🛑 [F5 Guardrails Policy Block]: {err_detail}"
-    elif err_j:
-        msg = f"🛑 [F5 Guardrails Policy Block]: {json.dumps(err_j)}"
-    else:
-        msg = "🛑 [F5 Guardrails Policy Block]: Security Policy Violation Detected."
-    risk = "95% (High)"
+    if is_policy_block:
+        scanner = "F5 AI Security Guardrail"
+        clean_msg = err_detail if err_detail else "CAI guardrails blocked the prompt."
+        msg = f"🛑 [F5 Guardrails Policy Block]: {clean_msg}"
+        risk = "95% (High)"
+        return scanner, msg, risk
 
+    # Handle system/API errors cleanly (e.g. Auth failure, network error, 500)
+    scanner = "F5 Guardrails API Error"
+    clean_msg = err_detail if err_detail else "An unexpected error occurred while communicating with F5 AI Guardrails."
+    msg = f"⚠️ [F5 Guardrails API Error]: {clean_msg}"
+    risk = "N/A (System Error)"
     return scanner, msg, risk
+
 
 
 
