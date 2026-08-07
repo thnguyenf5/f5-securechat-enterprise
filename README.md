@@ -6,7 +6,7 @@
 
 ## 🌟 Key Features
 
-* **🛡️ Real-Time F5 Guardrails Protection**: Automatically inspects user prompts and LLM completions for Prompt Injection, PII/SSN Leakage, API Key Leaks, Financial Data (PCI-DSS), and Malware Instructions.
+* **🛡️ Real-Time F5 Guardrails Protection**: Automatically inspects user prompts and LLM completions against configured security packages including Prompt Injection, PII Core, EU AI Act compliance, and Restricted Topics.
 * **📊 Live Security Telemetry & Inspection**: Every message bubble in chat history is interactive—click any message to inspect its exact risk score, triggered scanner, confidence rating, incident ID, and latency.
 * **⚡ Token Savings Analytics**: Displays real-time estimated token savings (`~Est. Tokens Saved`) to quantify cost avoidance from blocked malicious or excessive responses.
 * **🔄 Zero-Restart Provider Auto-Discovery**: Automatically queries the F5 Guardrails Management Plane to resolve active model providers (`Azure OpenAI`, `OpenAI`, `Bedrock`, `OpenRouter`). Includes a manual **`🔄 Sync Provider`** control button in the left-hand toolbar.
@@ -17,22 +17,16 @@
 
 ## 📸 Application Screenshots
 
-*(Replace image links below with your uploaded screenshot assets)*
-
-| Dark Mode Split-View Workspace | Light Mode Theme Switch |
+| Dark Mode Split-View Workspace | Light Mode Workspace |
 | :---: | :---: |
-| ![Dark Mode Workspace](static/screenshots/dark_mode_workspace.png) | ![Light Mode Workspace](static/screenshots/light_mode_workspace.png) |
-
-| F5 Guardrail Security Policy Block (Red Card) | Interactive Message Telemetry Analysis |
-| :---: | :---: |
-| ![Security Block Card](static/screenshots/security_block.png) | ![Telemetry Analysis](static/screenshots/telemetry_analysis.png) |
+| <img src="static/screenshots/dark_mode_workspace.png" alt="Dark Mode Workspace" width="100%"/> | <img src="static/screenshots/light_mode_workspace.png" alt="Light Mode Workspace" width="100%"/> |
 
 ---
 
 ## 📋 Prerequisites
 
 1. **Docker & Docker Compose** (Recommended) OR **Python 3.11+**.
-2. An active **F5 AI Security Guardrails** account / tenant (`https://www.us1.calypsoai.app/`).
+2. An active **F5 AI Security Guardrails** tenant account.
 
 ---
 
@@ -41,7 +35,7 @@
 Follow these step-by-step instructions to set up your security project in the F5 Management Console:
 
 ### Step 1: Log Into the F5 Guardrails Portal
-Navigate to **[https://www.us1.calypsoai.app/](https://www.us1.calypsoai.app/)** and sign in with your enterprise credentials.
+Navigate to your enterprise **F5 AI Security Guardrails Portal** and sign in with your administrator credentials.
 
 ### Step 2: Create a New Security Project
 1. In the left navigation sidebar, click **Projects**.
@@ -50,13 +44,11 @@ Navigate to **[https://www.us1.calypsoai.app/](https://www.us1.calypsoai.app/)**
 4. Click **Create**.
 
 ### Step 3: Enable Security Scanners
-1. Inside your newly created project, navigate to **Scanner Settings**.
-2. Enable the desired security scanners:
-   * **Prompt Injection & Jailbreak Detector**: Blocks system override & "DAN mode" jailbreaks.
-   * **PII & SSN Data Scanner**: Prevents social security numbers and personal data leakage.
-   * **Secret & API Key Leakage Scanner**: Detects exposed API keys, private keys, and passwords.
-   * **Financial & PCI-DSS Data Scanner**: Blocks credit card numbers and banking data.
-   * **Malware & Harmful Instruction Scanner**: Filters malicious script creation requests.
+In your project settings under **Scanner Settings**, enable the following 4 security packages:
+* **EU AI Act package**
+* **Restricted topics package**
+* **PII core package**
+* **Prompt injection package**
 
 ### Step 4: Configure Upstream Model Provider Profiles
 1. Navigate to **Provider Profiles** under Project Settings.
@@ -68,8 +60,8 @@ Navigate to **[https://www.us1.calypsoai.app/](https://www.us1.calypsoai.app/)**
 1. Under Project Settings, click **API Keys**.
 2. Click **Generate API Key**.
 3. Copy both values immediately:
-   * **Project ID** (e.g. `019f91fd-c09f-70ed-81f6-f27c2ee905dd`)
-   * **API Key** (e.g. `MDE5ZmQyYjkt...`)
+   * **Project ID**
+   * **API Key**
 
 ---
 
@@ -77,7 +69,7 @@ Navigate to **[https://www.us1.calypsoai.app/](https://www.us1.calypsoai.app/)**
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/f5-securechat-enterprise.git
+git clone https://github.com/thnguyenf5/f5-securechat-enterprise.git
 cd f5-securechat-enterprise
 ```
 
@@ -90,6 +82,7 @@ Edit `.env` with your F5 Guardrails credentials:
 ```env
 F5_AI_GUARDRAILS_API_KEY="your_f5_guardrails_api_key_here"
 F5_AI_GUARDRAILS_PROJECT_ID="your_f5_guardrails_project_id_here"
+F5_AI_GUARDRAILS_BASE_URL="https://your-f5-guardrails-portal-url"
 PORT=8000
 ```
 
@@ -105,8 +98,9 @@ Open **`http://localhost:8000`** in your browser!
 
 | Variable Name | Description | Required | Default / Example |
 | :--- | :--- | :---: | :--- |
-| `F5_AI_GUARDRAILS_API_KEY` | API Key generated in F5 Guardrails Console | Yes | `MDE5ZmQ2...` |
-| `F5_AI_GUARDRAILS_PROJECT_ID` | Project UUID from F5 Guardrails Console | Yes | `019f91fd-...` |
+| `F5_AI_GUARDRAILS_API_KEY` | API Key generated in F5 Guardrails Console | Yes | `your_f5_api_key_here` |
+| `F5_AI_GUARDRAILS_PROJECT_ID` | Project UUID from F5 Guardrails Console | Yes | `your_f5_project_id_here` |
+| `F5_AI_GUARDRAILS_BASE_URL` | Base URL of your F5 Guardrails Portal | No | `https://www.us1.calypsoai.app` |
 | `F5_AI_GUARDRAILS_ENDPOINT` | Custom proxy URL override | No | *Auto-discovered via API* |
 | `PORT` | Web application listening port | No | `8000` |
 
