@@ -15,8 +15,9 @@ app = FastAPI(title="F5 AI Chat Application", version="1.0.0")
 # Load 12-Factor Environment Configuration
 API_KEY = os.environ.get("F5_AI_GUARDRAILS_API_KEY", "")
 PROJECT_ID = os.environ.get("F5_AI_GUARDRAILS_PROJECT_ID", "your-f5-project-id")
+BASE_URL = os.environ.get("F5_AI_GUARDRAILS_BASE_URL", "https://www.us1.calypsoai.app").rstrip("/")
 active_provider_name = "azure-open-ai"
-active_calypso_endpoint = "https://www.us1.calypsoai.app/openai/azure-open-ai/chat/completions"
+active_calypso_endpoint = f"{BASE_URL}/openai/azure-open-ai/chat/completions"
 
 async def sync_f5_provider_config() -> tuple:
     """
@@ -34,7 +35,7 @@ async def sync_f5_provider_config() -> tuple:
 
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
-            url = f"https://www.us1.calypsoai.app/backend/v1/projects/{PROJECT_ID}"
+            url = f"{BASE_URL}/backend/v1/projects/{PROJECT_ID}"
             resp = await client.get(url, headers={
                 "Authorization": f"Bearer {API_KEY}",
                 "x-calypso-project-id": PROJECT_ID
@@ -45,7 +46,7 @@ async def sync_f5_provider_config() -> tuple:
                 for p in providers:
                     if p.get("enabled") and (p.get("default") or len(providers) == 1):
                         active_provider_name = p.get("name", "azure-open-ai")
-                        active_calypso_endpoint = f"https://www.us1.calypsoai.app/openai/{active_provider_name}/chat/completions"
+                        active_calypso_endpoint = f"{BASE_URL}/openai/{active_provider_name}/chat/completions"
                         print(f"[F5 GUARDRAILS SYNC] Active Provider: {active_provider_name} ({active_calypso_endpoint})")
                         return active_provider_name, active_calypso_endpoint
     except Exception as e:
