@@ -1,0 +1,20 @@
+{{- if .Values.nginxVirtualServer.enabled -}}
+{{- $fullName := include "f5-securechat-enterprise.fullname" . -}}
+{{- $svcPort := .Values.service.port -}}
+apiVersion: k8s.nginx.org/v1
+kind: VirtualServer
+metadata:
+  name: {{ $fullName }}-virtualserver
+  labels:
+    {{- include "f5-securechat-enterprise.labels" . | nindent 4 }}
+spec:
+  host: {{ .Values.nginxVirtualServer.host | quote }}
+  upstreams:
+    - name: securechat-upstream
+      service: {{ $fullName }}
+      port: {{ $svcPort }}
+  routes:
+    - path: /
+      action:
+        pass: securechat-upstream
+{{- end }}

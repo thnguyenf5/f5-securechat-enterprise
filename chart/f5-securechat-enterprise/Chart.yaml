@@ -1,0 +1,18 @@
+apiVersion: v2
+name: f5-securechat-enterprise
+description: A Helm chart for F5 SecureChat Enterprise protected by F5 AI Security Guardrails
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - f5
+  - security
+  - guardrails
+  - llm
+  - ai
+  - chat
+home: https://github.com/thnguyenf5/f5-securechat-enterprise
+sources:
+  - https://github.com/thnguyenf5/f5-securechat-enterprise
+maintainers:
+  - name: F5 DevCentral / Security Team

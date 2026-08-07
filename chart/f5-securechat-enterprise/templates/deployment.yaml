@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "f5-securechat-enterprise.fullname" . }}
+  labels:
+    {{- include "f5-securechat-enterprise.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "f5-securechat-enterprise.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "f5-securechat-enterprise.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: F5_AI_GUARDRAILS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "f5-securechat-enterprise.fullname" . }}-secret
+                  key: api-key
+            - name: F5_AI_GUARDRAILS_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "f5-securechat-enterprise.fullname" . }}-secret
+                  key: project-id
+            - name: F5_AI_GUARDRAILS_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "f5-securechat-enterprise.fullname" . }}-secret
+                  key: base-url
+            {{- if .Values.env.endpointOverride }}
+            - name: F5_AI_GUARDRAILS_ENDPOINT
+              value: {{ .Values.env.endpointOverride | quote }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,75 @@
+# Default values for f5-securechat-enterprise
+# This is a YAML-formatted file.
+
+replicaCount: 1
+
+image:
+  repository: thnguyenf5/f5-securechat-enterprise
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# F5 AI Security Guardrails Configuration
+# MANDATORY: All 3 values below must be provided during installation
+env:
+  apiKey: ""       # [MANDATORY] F5 AI Guardrails API Key
+  projectId: ""    # [MANDATORY] F5 AI Guardrails Project UUID
+  baseUrl: ""      # [MANDATORY] F5 AI Guardrails Portal Base URL (e.g. https://www.us1.calypsoai.app)
+
+# Service Configuration
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8000
+
+# Container Probes & Health Checks
+probes:
+  liveness:
+    path: /v1/models
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readiness:
+    path: /v1/models
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Container Resource Allocations
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# 1. Standard Kubernetes Ingress (Supported by NGINX Ingress, Traefik, ALB, GCP, Istio)
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: f5-securechat.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# 2. Standard Gateway API Support (v1 HTTPRoute)
+gatewayApi:
+  enabled: false
+  gatewayName: "nginx-gateway"
+  gatewayNamespace: "nginx-gateway"
+  hostnames:
+    - "f5-securechat.example.com"
+
+# 3. Optional F5 NGINX Ingress Controller VirtualServer CRD
+nginxVirtualServer:
+  enabled: false
+  host: "f5-securechat.example.com"
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
