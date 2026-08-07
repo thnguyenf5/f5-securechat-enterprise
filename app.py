@@ -264,17 +264,20 @@ async def chat_completions(request: Request):
 
     is_stream = body.get("stream", True)
     
-    # Ensure correct model name for Calypso backend
-    body["model"] = "gpt-4o-mini"
+    # Use client model if provided, default to gpt-4o-mini
+    if not body.get("model"):
+        body["model"] = "gpt-4o-mini"
 
-    # Extract project ID from request headers if passed by client, otherwise use default
-    req_proj_id = request.headers.get("x-calypso-project-id", PROJECT_ID)
+    # Extract project ID and authorization header from request if passed by client, otherwise use env defaults
+    req_proj_id = request.headers.get("x-calypso-project-id") or request.headers.get("X-Calypso-Project-Id") or PROJECT_ID
+    req_auth = request.headers.get("authorization") or request.headers.get("Authorization") or (f"Bearer {API_KEY}" if API_KEY else "")
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": req_auth,
         "x-calypso-project-id": req_proj_id
     }
+
 
     input_tokens = count_tokens(user_prompt)
     prevented_output_tokens = 500
